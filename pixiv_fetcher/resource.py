@@ -3,6 +3,7 @@ import logging
 
 from twisted.internet import reactor, defer
 from twisted.web.proxy import ReverseProxyResource
+from twisted.web.resource import NoResource
 from twisted.web.server import NOT_DONE_YET
 
 from pixiv_fetcher.downloader import IllustrationDownloader
@@ -16,7 +17,12 @@ class PixivImageProxyResource(ReverseProxyResource):
 
     def __init__(self, host, path, port=80, cache=None, pool_maxsize=4,
                  downloader=None, reactor=reactor):
-        ReverseProxyResource.__init__(self, host, port, path, reactor)
+        path = path[:-1] if path.endswith('/') else path
+        paths = path.split('/')
+
+        root_path = paths[0]
+        ReverseProxyResource.__init__(self, host, port, root_path, reactor)
+        self._sub_paths = paths[1:]
 
         self._downloader = downloader \
             or IllustrationDownloader(host=host, pool_maxsize=pool_maxsize)
@@ -24,6 +30,14 @@ class PixivImageProxyResource(ReverseProxyResource):
         self._cache = cache
 
     def getChild(self, path, request):
+        if not hasattr(request, 'path_stack'):
+            setattr(request, 'path_stack', [])
+
+        request.path_stack.append(path)
+        for r_path, s_path in zip(request.path_stack, self._sub_paths):
+            if r_path != s_path:
+                return NoResource("Not Found.")
+
         return self
 
     def render(self, request):

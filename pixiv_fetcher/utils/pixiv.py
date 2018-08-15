@@ -1,11 +1,10 @@
 import datetime
+import re
 from collections import namedtuple
 
-import re
-
-_p_pximg = re.compile('(?P<datetime>\d{4}/(?:\d{2}/){5})'
-                      '(?P<id>\d+)_p(?P<page>\d+)'
-                      '\.(?P<extension>jpg|png|gif|jpeg)', re.I)
+_p_pximg = re.compile('/(?P<datetime>\d{4}/(?:\d{2}/){5})'
+                      '(?P<id>\d+)_p(?P<page>\d+)(?:_master1200)?'
+                      '\.(?P<extension>jpg|png|gif|jpeg)$', re.I)
 
 _datetime_format = '%Y/%m/%d/%H/%M/%S/'
 
