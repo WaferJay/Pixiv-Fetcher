@@ -8,6 +8,8 @@ _p_pximg = re.compile('/(?P<datetime>\d{4}/(?:\d{2}/){5})'
 
 _datetime_format = '%Y/%m/%d/%H/%M/%S/'
 
+PixivImage = namedtuple('PixivImage', ['pid', 'page', 'extension', 'datetime'])
+
 
 def parse_pximg_url(url):
     match = _p_pximg.search(url)
@@ -19,8 +21,6 @@ def parse_pximg_url(url):
         pid = int(results['id'])
         page = int(results['page'])
 
-        PxImg = namedtuple('PixivImage', ['pid', 'page', 'extension', 'datetime'])
-
-        return PxImg(pid, page, extension, dt)
+        return PixivImage(pid, page, extension, dt)
 
     return None

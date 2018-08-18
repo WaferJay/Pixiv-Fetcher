@@ -206,7 +206,7 @@ class DiskStorage(BaseStorage):
             except IOError:
                 return False
             else:
-                self.delete(full_path)  # 防止文件存在导致移动失败
+                self.delete(key)  # 防止文件存在导致移动失败
                 os.rename(tmp_path, full_path)
                 self._info.count += 1
                 self._info.size += len(value)

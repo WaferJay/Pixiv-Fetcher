@@ -119,8 +119,8 @@ class Cache(object):
         cls_name = self.__class__.__name__
         strategy_name = self._strategy.__class__.__name__
         storage_name = self._storage.__class__.__name__
-        return '<%s@%s [state=%s, strategy=%s, storage=%s]>' \
-               % (cls_name, hex(id(self)), self.state, strategy_name, storage_name)
+        return '<%s@0x%x [state=%s, strategy=%s, storage=%s]>' \
+               % (cls_name, id(self), self.state, strategy_name, storage_name)
 
 
 class CombinationCache(object):

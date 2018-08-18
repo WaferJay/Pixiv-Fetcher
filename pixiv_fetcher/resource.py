@@ -30,13 +30,14 @@ class PixivImageProxyResource(ReverseProxyResource):
         self._cache = cache
 
     def getChild(self, path, request):
-        if not hasattr(request, 'path_stack'):
-            setattr(request, 'path_stack', [])
+        if not hasattr(request, 'path_depth'):
+            setattr(request, 'path_depth', -1)
 
-        request.path_stack.append(path)
-        for r_path, s_path in zip(request.path_stack, self._sub_paths):
-            if r_path != s_path:
-                return NoResource("Not Found.")
+        request.path_depth += 1
+
+        depth = request.path_depth
+        if depth < len(self._sub_paths) and self._sub_paths[depth] != path:
+            return NoResource('Not Found.')
 
         return self
 
@@ -78,7 +79,12 @@ class PixivImageProxyResource(ReverseProxyResource):
                     key = request.uri
                     self._cache.set(key, body)
 
+        def _fail(reason, request):
+            logger.exception(reason)
+            return reason
+
         dfd.addCallback(_process)
+        dfd.addErrback(_fail, request)
         reactor.callInThread(dfd.callback, None)
 
     def _send_cache_headers(self, request, last_modified=None):
