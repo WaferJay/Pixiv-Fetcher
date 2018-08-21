@@ -7,6 +7,7 @@ from twisted.web.resource import NoResource
 from twisted.web.server import NOT_DONE_YET
 
 from pixiv_fetcher.downloader import IllustrationDownloader
+from pixiv_fetcher.exceptions import HttpResponseException
 from pixiv_fetcher.utils.pixiv import parse_pximg_url
 from pixiv_fetcher.utils.time import datetime2gmt
 
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 class PixivImageProxyResource(ReverseProxyResource):
 
     def __init__(self, host, path, port=80, cache=None, pool_maxsize=4,
-                 downloader=None, reactor=reactor):
+                 downloader=None, filter_fun=None, reactor=reactor):
         path = path[:-1] if path.endswith('/') else path
         paths = path.split('/')
 
@@ -28,6 +29,7 @@ class PixivImageProxyResource(ReverseProxyResource):
             or IllustrationDownloader(host=host, pool_maxsize=pool_maxsize)
 
         self._cache = cache
+        self._filter = filter_fun
 
     def getChild(self, path, request):
         if not hasattr(request, 'path_depth'):
@@ -46,6 +48,17 @@ class PixivImageProxyResource(ReverseProxyResource):
         uri = request.uri
 
         logger.info('%s %s %s', request.method, uri, client)
+
+        if self._filter:
+            try:
+                self._filter(request)
+            except HttpResponseException as e:
+                e.send_response(request)
+                logger.warn('HTTP%d %s %s', e.code, e.phrase, client)
+                return NOT_DONE_YET
+            except Exception as e:
+                logger.exception(e)
+                raise
 
         if request.requestHeaders.hasHeader('If-Modified-Since'):
             self._return_304(request)
@@ -85,7 +98,7 @@ class PixivImageProxyResource(ReverseProxyResource):
 
         dfd.addCallback(_process)
         dfd.addErrback(_fail, request)
-        reactor.callInThread(dfd.callback, None)
+        dfd.callback(None)
 
     def _send_cache_headers(self, request, last_modified=None):
         request.responseHeaders.setRawHeaders('Cache-Control', ['max-age=31536000'])
@@ -111,11 +124,7 @@ class PixivImageProxyResource(ReverseProxyResource):
 
     def _return_304(self, request):
         request.setResponseCode(304, 'Not Modified')
-        request.responseHeaders.setRawHeaders('X-Content-Type-Options', ['nosniff'])
-
         self._send_cache_headers(request)
-
-        request.responseHeaders.setRawHeaders('Server', ['nginx'])
         request.finish()
 
     def _return_response(self, response, request):
